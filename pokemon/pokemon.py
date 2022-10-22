@@ -25,23 +25,26 @@ class Pokemon:
         self.types = types
         self.stats = stats
 
+
     @classmethod
     def from_dict(cls, dict: dict) -> Pokemon:
-        name = dict["name"]
-        id = dict["id"]
         types = [t["type"]["name"] for t in dict["types"]]
         stats = Stats.from_dict(dict["stats"])
-        return cls(name, id, types, stats)
+        return cls(dict["name"], dict["id"], types, stats)
+
+
+    @classmethod
+    def from_api(cls, name: str) -> Pokemon:
+        res = requests.get(url=f"{BASE_API_POKEMON}{name}")
+        return cls.from_dict(res.json())
+        
+
+    def __repr__(self) -> str:
+        return f"{self.name=}, {self.stats}"
 
 
 
-def fetch_pokemon_data(name: str):
 
-    res = requests.get(url=f"{BASE_API_POKEMON}{name}")
-    pokemon = Pokemon.from_dict(res.json())
-    return pokemon
-
-
-name = input()
-pokemon = fetch_pokemon_data(name)
+pokemon_name = ["bulbasaur", "pikachu", "charmander"]
+pokemon = Pokemon.from_api("pikachu")
 print(pokemon)
