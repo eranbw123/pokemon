@@ -1,50 +1,13 @@
 from __future__ import annotations
 import asyncio
 from asyncio import Task
-from typing import Callable
 from httpx import AsyncClient, Response
 from dataclasses import dataclass
-from functools import wraps
 
-from constants import BASE_API_POKEMON, MAX_POKEMONS
+from constants import BASE_API_POKEMON
 
-
-class DuplicatePokemon(Exception):
-    pass
-
-
-class MaxPokemons(Exception):
-    def __init__(self, current_amount: int, future_amount: int) -> None:
-        super().__init__(
-            f"you already have {current_amount} pokemons, if added you would have {future_amount}, which exceeds {MAX_POKEMONS}"
-        )
-
-
-def add_pokemons_validator(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(coach: Coach, names: list[str]):
-        duplicates = [
-            pokemon.name for pokemon in coach.pokemons if pokemon.name in names
-        ]
-        if duplicates:
-            raise DuplicatePokemon(duplicates)
-
-        if (future_amount := (len(coach.pokemons) + len(names))) > MAX_POKEMONS:
-            raise MaxPokemons(len(coach.pokemons), future_amount)
-
-        return func(coach, names)
-
-    return wrapper
-
-
-def test_decorator(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        print(args)
-        print(kwargs)
-        return func(*args, **kwargs)
-
-    return wrapper
+from exceptions import InvalidPokemonData
+from validation import add_pokemons_validator
 
 
 @dataclass
@@ -74,9 +37,12 @@ class Pokemon:
 
     @classmethod
     def from_api_dict(cls, dict: dict) -> Pokemon:
-        types = [t["type"]["name"] for t in dict["types"]]
-        stats = Stats.from_api_dict(dict["stats"])
-        return cls(dict["name"], dict["id"], types, stats)
+        try:
+            types = [t["type"]["name"] for t in dict["types"]]
+            stats = Stats.from_api_dict(dict["stats"])
+            return cls(dict["name"], dict["id"], types, stats)
+        except Exception:
+            raise InvalidPokemonData
 
     @classmethod
     async def fetch_pokemons(cls, names: list[str]) -> list[Pokemon]:
