@@ -4,10 +4,10 @@ from asyncio import Task
 from httpx import AsyncClient, Response
 from dataclasses import dataclass
 
-from constants import BASE_API_POKEMON
 
-from exceptions import InvalidPokemonData
-from validation import add_pokemons_validator
+from constants import BASE_API_POKEMON
+from exceptions import InvalidPokemonData, PokemonFetchFalied, InvalidPokemonName
+from utils import async_client_fetch
 
 
 @dataclass
@@ -21,11 +21,10 @@ class Stats:
 
     @classmethod
     def from_api_dict(cls, dict: dict) -> Stats:
-        return cls(*[stat["base_stat"] for stat in dict])
-
-
-async def async_client_fetch(url: str, client: AsyncClient) -> Response:
-    return await client.get(url)
+        try:
+            return cls(*[stat["base_stat"] for stat in dict])
+        except:
+            raise InvalidPokemonData
 
 
 class Pokemon:
@@ -54,27 +53,14 @@ class Pokemon:
                 )
                 tasks.append(task)
             responses: list[Response] = await asyncio.gather(*tasks)
+
+            for res, name in zip(responses, names):
+                if res.status_code == 404:
+                    raise InvalidPokemonName(name)
+                if status := res.status_code != 200:
+                    raise PokemonFetchFalied(status)
+
             return [cls.from_api_dict(res.json()) for res in responses]
 
     def __repr__(self) -> str:
         return f"{self.name=}, {self.stats.hp=}, {self.stats.attack=}"
-
-
-class Coach:
-    def __init__(self, name: str, pokemons: list[str]) -> None:
-        self.name = name
-        self.pokemons = asyncio.run(Pokemon.fetch_pokemons(list(set(pokemons))))
-
-    @add_pokemons_validator
-    def add_pokemons(self, pokemons: list[str]):
-        self.pokemons.extend(asyncio.run(Pokemon.fetch_pokemons(pokemons)))
-
-    def __repr__(self) -> str:
-        return f"{self.name=}, {self.pokemons}"
-
-
-pokemon_names = ["bulbasaur", "pikachu", "charmander", "charmander"]
-c = Coach(name="eran", pokemons=pokemon_names)
-print(c)
-c.add_pokemons(["ditto"])
-print(c)

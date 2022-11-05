@@ -5,9 +5,8 @@ from typing import Callable, TYPE_CHECKING
 from exceptions import DuplicatePokemon, MaxPokemons
 from constants import MAX_POKEMONS
 
-
 if TYPE_CHECKING:
-    from pokemon.pokemon import Coach
+    from coche import Coach
 
 
 def add_pokemons_validator(func: Callable) -> Callable:
